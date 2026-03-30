@@ -10,4 +10,5 @@ public class StourApplication {
 		SpringApplication.run(StourApplication.class, args);
 	}
 
+
 }

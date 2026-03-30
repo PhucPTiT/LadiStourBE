@@ -89,6 +89,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * Check if request is to a public endpoint
      */
     private boolean isPublicEndpoint(String requestPath, String method) {
+        // Allow Swagger/OpenAPI documentation endpoints
+        if (requestPath.startsWith("/swagger-ui") ||
+            requestPath.startsWith("/v3/api-docs") ||
+            requestPath.startsWith("/api-docs") ||
+            requestPath.equals("/api-docs") ||
+            requestPath.startsWith("/webjars")) {
+            return true;
+        }
+
         // Allow GET requests for read operations
         if ("GET".equals(method)) {
             return requestPath.startsWith("/api/categories") ||

@@ -12,6 +12,8 @@ public interface DestinationsRepository extends MongoRepository<DestinationsEnti
 
     List<DestinationsEntity> findByTranslationGroupId(String translationGroupId);
 
+    Optional<DestinationsEntity> findByTranslationGroupIdAndLocale(String translationGroupId, String locale);
+
     List<DestinationsEntity> findByLocaleAndIsFeatured(String locale, boolean isFeatured);
 
     List<DestinationsEntity> findByLocale(String locale);
@@ -19,4 +21,7 @@ public interface DestinationsRepository extends MongoRepository<DestinationsEnti
     List<DestinationsEntity> findByLocationCountryAndLocale(String country, String locale);
 
     List<DestinationsEntity> findByLocationCityAndLocale(String city, String locale);
+
+    boolean existsBySlug(String slug);
+    boolean existsBySlugAndIdNot(String slug, String id);
 }

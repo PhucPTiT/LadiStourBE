@@ -5,6 +5,7 @@ import com.ladi.stour.embedded.Location;
 import com.ladi.stour.embedded.SEOMeta;
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document(collection = "destinations")
@@ -23,6 +24,7 @@ public class DestinationsEntity extends BaseDocument {
     private boolean isDefaultLocale;
 
     private String name;
+    @Indexed(unique = true)
     private String slug;
     private String thumbnail;
     private String banner;

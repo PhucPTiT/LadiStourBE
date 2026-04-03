@@ -9,8 +9,8 @@ import java.util.Optional;
 public interface CategoriesRepository extends MongoRepository<CategoriesEntity, String> {
 
     Optional<CategoriesEntity> findBySlugAndLocale(String slug, String locale);
-
-    List<CategoriesEntity> findByTranslationGroupId(String translationGroupId);
+    boolean existsBySlug(String slug);
+    boolean existsBySlugAndIdNot(String slug, String id);
 
     List<CategoriesEntity> findByLocale(String locale);
 }

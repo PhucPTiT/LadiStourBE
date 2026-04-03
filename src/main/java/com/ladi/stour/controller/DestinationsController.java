@@ -1,7 +1,9 @@
 package com.ladi.stour.controller;
 
 import com.ladi.stour.dto.DestinationsCreateRequest;
+import com.ladi.stour.dto.DestinationsMultiLanguageRequest;
 import com.ladi.stour.dto.DestinationsUpdateRequest;
+import com.ladi.stour.dto.MessageResponse;
 import com.ladi.stour.entity.DestinationsEntity;
 import com.ladi.stour.service.InterfaceDestinationsService;
 import jakarta.validation.Valid;
@@ -21,6 +23,11 @@ public class DestinationsController {
         return destinationsService.createDefault(req);
     }
 
+    @PostMapping("/multi-language")
+    public MessageResponse createMultiLanguage(@RequestBody @Valid DestinationsMultiLanguageRequest req) {
+        return destinationsService.createOrUpdateMultiLanguage(req);
+    }
+
     @PostMapping("/{id}/translations")
     public DestinationsEntity createTranslation(
             @PathVariable String id,
@@ -34,9 +41,14 @@ public class DestinationsController {
         return destinationsService.update(id, req);
     }
 
+    @PutMapping("/multi-language/{id}")
+    public MessageResponse updateMultiLanguage(@PathVariable String id, @RequestBody @Valid DestinationsMultiLanguageRequest req) {
+        return destinationsService.createOrUpdateMultiLanguage(id, req);
+    }
+
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable String id) {
-        destinationsService.delete(id);
+    public MessageResponse delete(@PathVariable String id) {
+        return destinationsService.delete(id);
     }
 
     @GetMapping("/slug/{slug}")

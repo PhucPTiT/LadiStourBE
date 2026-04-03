@@ -13,7 +13,6 @@ public class PostsCreateRequest {
     @NotBlank
     private String title;
 
-    @NotBlank
     private String slug;
 
     private String thumbnail;

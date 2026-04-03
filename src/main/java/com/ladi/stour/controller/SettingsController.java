@@ -19,23 +19,18 @@ public class SettingsController {
         return settingsService.create(req);
     }
 
-    @PutMapping("/{id}")
-    public SettingsEntity update(@PathVariable String id, @RequestBody @Valid SettingsUpdateRequest req) {
-        return settingsService.update(id, req);
+    @GetMapping
+    public SettingsEntity get() {
+        return settingsService.get();
     }
 
-    @GetMapping("/{id}")
-    public SettingsEntity getById(@PathVariable String id) {
-        return settingsService.getById(id);
+    @PutMapping
+    public SettingsEntity update(@RequestBody @Valid SettingsUpdateRequest req) {
+        return settingsService.update(req);
     }
 
-    @GetMapping("/default")
-    public SettingsEntity getDefault() {
-        return settingsService.getDefault();
-    }
-
-    @DeleteMapping("/{id}")
-    public void delete(@PathVariable String id) {
-        settingsService.delete(id);
+    @PostMapping("/reset")
+    public SettingsEntity reset() {
+        return settingsService.reset();
     }
 }

@@ -2,6 +2,7 @@ package com.ladi.stour.controller;
 
 import com.ladi.stour.dto.CategoriesCreateRequest;
 import com.ladi.stour.dto.CategoriesUpdateRequest;
+import com.ladi.stour.dto.MessageResponse;
 import com.ladi.stour.entity.CategoriesEntity;
 import com.ladi.stour.service.InterfaceCategoriesService;
 import jakarta.validation.Valid;
@@ -21,22 +22,14 @@ public class CategoriesController {
         return categoriesService.createDefault(req);
     }
 
-    @PostMapping("/{id}/translations")
-    public CategoriesEntity createTranslation(
-            @PathVariable String id,
-            @RequestBody @Valid CategoriesCreateRequest req
-    ) {
-        return categoriesService.createTranslation(id, req);
-    }
-
     @PutMapping("/{id}")
     public CategoriesEntity update(@PathVariable String id, @RequestBody @Valid CategoriesUpdateRequest req) {
         return categoriesService.update(id, req);
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable String id) {
-        categoriesService.delete(id);
+    public MessageResponse delete(@PathVariable String id) {
+        return categoriesService.delete(id);
     }
 
     @GetMapping("/{id}")
@@ -52,13 +45,13 @@ public class CategoriesController {
         return categoriesService.getBySlug(slug, locale);
     }
 
-    @GetMapping("/translations/{translationGroupId}")
-    public List<CategoriesEntity> getTranslations(@PathVariable String translationGroupId) {
-        return categoriesService.getTranslations(translationGroupId);
-    }
-
     @GetMapping
     public List<CategoriesEntity> getAll(@RequestParam(defaultValue = "vi") String locale) {
         return categoriesService.getAll(locale);
+    }
+
+    @GetMapping("/all")
+    public List<CategoriesEntity> getAllTranslations() {
+        return categoriesService.getAll();
     }
 }

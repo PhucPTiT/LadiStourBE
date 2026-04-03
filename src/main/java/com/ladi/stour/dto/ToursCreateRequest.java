@@ -16,7 +16,6 @@ public class ToursCreateRequest {
     @NotBlank
     private String title;
 
-    @NotBlank
     private String slug;
 
     @NotBlank
@@ -26,6 +25,9 @@ public class ToursCreateRequest {
 
     @Positive
     private Integer durationDays;
+
+    @Positive
+    private Integer durationNights;
 
     @Positive
     private Integer maxPeople;

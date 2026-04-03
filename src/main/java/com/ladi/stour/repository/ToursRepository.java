@@ -10,6 +10,10 @@ import java.util.Optional;
 public interface ToursRepository extends MongoRepository<ToursEntity, String> {
 
     Optional<ToursEntity> findBySlugAndLocale(String slug, String locale);
+    boolean existsBySlug(String slug);
+    boolean existsBySlugAndIdNot(String slug, String id);
+
+    Optional<ToursEntity> findByTranslationGroupIdAndLocale(String translationGroupId, String locale);
 
     List<ToursEntity> findByTranslationGroupId(String translationGroupId);
 

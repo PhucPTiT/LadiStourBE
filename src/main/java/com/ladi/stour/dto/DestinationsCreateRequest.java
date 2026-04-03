@@ -14,7 +14,6 @@ public class DestinationsCreateRequest {
     @NotBlank
     private String name;
 
-    @NotBlank
     private String slug;
 
     private String thumbnail;

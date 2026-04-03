@@ -8,7 +8,7 @@ import com.ladi.stour.service.InterfaceSettingsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import java.util.Collections;
 
 @Service
 @RequiredArgsConstructor
@@ -17,22 +17,25 @@ public class SettingsService implements InterfaceSettingsService {
 
     @Override
     public SettingsEntity create(SettingsCreateRequest req) {
-        SettingsEntity settings = SettingsEntity.builder()
-                .email(req.getEmail())
-                .phoneNumber(req.getPhoneNumber())
-                .address(req.getAddress())
-                .intro(req.getIntro())
-                .social(req.getSocial())
-                .contentHTMLPageAbout(req.getContentHTMLPageAbout())
-                .build();
+        if (settingsRepository.findFirstByOrderByCreatedAtAsc().isPresent()) {
+            throw new RuntimeException("Settings already exists");
+        }
 
-        return settingsRepository.save(settings);
+        return settingsRepository.save(buildSettings(req));
     }
 
     @Override
-    public SettingsEntity update(String id, SettingsUpdateRequest req) {
-        SettingsEntity settings = settingsRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Settings not found"));
+    public SettingsEntity get() {
+        return settingsRepository.findFirstByOrderByCreatedAtAsc()
+                .orElseGet(() -> SettingsEntity.builder()
+                        .social(Collections.emptyList())
+                        .build());
+    }
+
+    @Override
+    public SettingsEntity update(SettingsUpdateRequest req) {
+        SettingsEntity settings = settingsRepository.findFirstByOrderByCreatedAtAsc()
+                .orElseGet(SettingsEntity::new);
 
         if (req.getEmail() != null) settings.setEmail(req.getEmail());
         if (req.getPhoneNumber() != null) settings.setPhoneNumber(req.getPhoneNumber());
@@ -45,22 +48,31 @@ public class SettingsService implements InterfaceSettingsService {
     }
 
     @Override
-    public SettingsEntity getById(String id) {
-        return settingsRepository.findById(id)
+    public SettingsEntity reset() {
+        SettingsEntity settings = getSettingsOrThrow();
+        settings.setEmail(null);
+        settings.setPhoneNumber(null);
+        settings.setAddress(null);
+        settings.setIntro(null);
+        settings.setSocial(null);
+        settings.setContentHTMLPageAbout(null);
+
+        return settingsRepository.save(settings);
+    }
+
+    private SettingsEntity getSettingsOrThrow() {
+        return settingsRepository.findFirstByOrderByCreatedAtAsc()
                 .orElseThrow(() -> new RuntimeException("Settings not found"));
     }
 
-    @Override
-    public SettingsEntity getDefault() {
-        List<SettingsEntity> all = settingsRepository.findAll();
-        if (all.isEmpty()) {
-            throw new RuntimeException("No settings found");
-        }
-        return all.getFirst();
-    }
-
-    @Override
-    public void delete(String id) {
-        settingsRepository.deleteById(id);
+    private SettingsEntity buildSettings(SettingsCreateRequest req) {
+        return SettingsEntity.builder()
+                .email(req.getEmail())
+                .phoneNumber(req.getPhoneNumber())
+                .address(req.getAddress())
+                .intro(req.getIntro())
+                .social(req.getSocial())
+                .contentHTMLPageAbout(req.getContentHTMLPageAbout())
+                .build();
     }
 }

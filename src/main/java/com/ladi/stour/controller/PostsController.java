@@ -1,6 +1,8 @@
 package com.ladi.stour.controller;
 
+import com.ladi.stour.dto.MessageResponse;
 import com.ladi.stour.dto.PostsCreateRequest;
+import com.ladi.stour.dto.PostsGetByIdRequest;
 import com.ladi.stour.dto.PostsUpdateRequest;
 import com.ladi.stour.entity.PostsEntity;
 import com.ladi.stour.service.InterfacePostsService;
@@ -42,8 +44,13 @@ public class PostsController {
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable String id) {
-        postsService.delete(id);
+    public MessageResponse delete(@PathVariable String id) {
+        return postsService.delete(id);
+    }
+
+    @PostMapping("/detail")
+    public PostsEntity getById(@RequestBody @Valid PostsGetByIdRequest req) {
+        return postsService.getById(req.getId());
     }
 
     @GetMapping("/slug/{slug}")
@@ -57,5 +64,15 @@ public class PostsController {
     @GetMapping("/translations/{groupId}")
     public List<PostsEntity> getTranslations(@PathVariable String groupId) {
         return postsService.getTranslations(groupId);
+    }
+
+    @GetMapping("/all")
+    public List<PostsEntity> getAll() {
+        return postsService.getAll();
+    }
+
+    @GetMapping("/published")
+    public List<PostsEntity> getPublished(@RequestParam(defaultValue = "vi") String locale) {
+        return postsService.getPublished(locale);
     }
 }

@@ -11,6 +11,5 @@ public class CategoriesCreateRequest {
     @NotBlank
     private String name;
 
-    @NotBlank
     private String slug;
 }

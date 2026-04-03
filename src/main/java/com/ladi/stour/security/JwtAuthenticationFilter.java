@@ -2,13 +2,20 @@ package com.ladi.stour.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -18,19 +25,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String AUTHORIZATION_HEADER = "Authorization";
-
-    /**
-     * List of endpoints that don't require authentication
-     */
-    private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/auth/login",
-            "/api/auth/register",
-            "/api/settings",
-            "/api/categories",
-            "/api/destinations",
-            "/api/tours",
-            "/api/reviews"
-    };
+    private static final String TOKEN_COOKIE_NAME = "token";
+    private static final List<String> FALLBACK_TOKEN_COOKIE_NAMES = List.of(
+            TOKEN_COOKIE_NAME,
+            "jwt",
+            "accessToken",
+            "access_token",
+            "authToken"
+    );
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -38,9 +40,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String requestPath = request.getRequestURI();
         String method = request.getMethod();
+        boolean publicRequest = isPublicEndpoint(requestPath, method);
 
-        // Skip authentication for public endpoints and GET requests on certain resources
-        if (isPublicEndpoint(requestPath, method)) {
+        if ("OPTIONS".equalsIgnoreCase(method)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -49,47 +51,99 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = extractTokenFromRequest(request);
 
             if (token == null) {
+                if (publicRequest) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Missing authorization token");
                 return;
             }
 
             if (!jwtTokenProvider.validateToken(token)) {
+                if (publicRequest) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
                 return;
             }
 
-            // Token is valid, set user info in request for controllers to access
             String userId = jwtTokenProvider.getUserIdFromToken(token);
             String username = jwtTokenProvider.getUsernameFromToken(token);
 
             request.setAttribute("userId", userId);
             request.setAttribute("username", username);
-
-            filterChain.doFilter(request, response);
-
+            setAuthentication(request, userId, username);
         } catch (Exception e) {
+            if (publicRequest) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Authentication failed: " + e.getMessage());
+            return;
+        }
+
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            SecurityContextHolder.clearContext();
         }
     }
 
-    /**
-     * Extract JWT token from Authorization header
-     */
     private String extractTokenFromRequest(HttpServletRequest request) {
         String authHeader = request.getHeader(AUTHORIZATION_HEADER);
+        if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
+            return authHeader.substring(BEARER_PREFIX.length());
+        }
 
-        if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
+        String tokenFromCookie = extractTokenFromCookies(request);
+        if (tokenFromCookie != null && !tokenFromCookie.isBlank()) {
+            return tokenFromCookie;
+        }
+        return null;
+    }
+
+    private String extractTokenFromCookies(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null || cookies.length == 0) {
             return null;
         }
 
-        return authHeader.substring(BEARER_PREFIX.length());
+        for (String cookieName : FALLBACK_TOKEN_COOKIE_NAMES) {
+            for (Cookie cookie : cookies) {
+                if (cookieName.equals(cookie.getName()) && cookie.getValue() != null && !cookie.getValue().isBlank()) {
+                    return normalizeToken(cookie.getValue());
+                }
+            }
+        }
+
+        return null;
     }
 
-    /**
-     * Check if request is to a public endpoint
-     */
+    private String normalizeToken(String token) {
+        if (token == null) {
+            return null;
+        }
+
+        String trimmedToken = token.trim();
+        if (trimmedToken.startsWith(BEARER_PREFIX)) {
+            return trimmedToken.substring(BEARER_PREFIX.length());
+        }
+
+        return trimmedToken;
+    }
+
+    private void setAuthentication(HttpServletRequest request, String userId, String username) {
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                username,
+                null,
+                Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+    }
+
     private boolean isPublicEndpoint(String requestPath, String method) {
-        // Allow Swagger/OpenAPI documentation endpoints
         if (requestPath.startsWith("/swagger-ui") ||
             requestPath.startsWith("/v3/api-docs") ||
             requestPath.startsWith("/api-docs") ||
@@ -98,30 +152,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return true;
         }
 
-        // Allow GET requests for read operations
-        if ("GET".equals(method)) {
+        if (requestPath.startsWith("/api/auth/login") || requestPath.startsWith("/api/auth/register")) {
+            return true;
+        }
+
+        if ("GET".equalsIgnoreCase(method)) {
             return requestPath.startsWith("/api/categories") ||
                    requestPath.startsWith("/api/destinations") ||
                    requestPath.startsWith("/api/posts") ||
                    requestPath.startsWith("/api/tours") ||
                    requestPath.startsWith("/api/reviews") ||
-                   requestPath.startsWith("/api/settings/default");
-        }
-
-        // Check if path is in public endpoints list
-        for (String publicEndpoint : PUBLIC_ENDPOINTS) {
-            if (requestPath.startsWith(publicEndpoint) &&
-                ("POST".equals(method) || "GET".equals(method))) {
-                return true;
-            }
+                   requestPath.startsWith("/api/settings");
         }
 
         return false;
     }
 
-    /**
-     * Send error response
-     */
     private void sendErrorResponse(HttpServletResponse response, int status, String message) throws IOException {
         response.setStatus(status);
         response.setContentType("application/json");

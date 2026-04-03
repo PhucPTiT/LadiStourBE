@@ -15,6 +15,7 @@ public class ToursUpdateRequest {
     private List<String> images;
 
     private Integer durationDays;
+    private Integer durationNights;
     private Integer maxPeople;
 
     private BigDecimal price;

@@ -1,6 +1,8 @@
 package com.ladi.stour.controller;
 
+import com.ladi.stour.dto.MessageResponse;
 import com.ladi.stour.dto.ToursCreateRequest;
+import com.ladi.stour.dto.ToursMultiLanguageRequest;
 import com.ladi.stour.dto.ToursUpdateRequest;
 import com.ladi.stour.entity.ToursEntity;
 import com.ladi.stour.enums.TourStatus;
@@ -22,6 +24,11 @@ public class ToursController {
         return toursService.createDefault(req);
     }
 
+    @PostMapping("/multi-language")
+    public MessageResponse createMultiLanguage(@RequestBody @Valid ToursMultiLanguageRequest req) {
+        return toursService.createOrUpdateMultiLanguage(req);
+    }
+
     @PostMapping("/{id}/translations")
     public ToursEntity createTranslation(
             @PathVariable String id,
@@ -35,6 +42,11 @@ public class ToursController {
         return toursService.update(id, req);
     }
 
+    @PutMapping("/multi-language/{id}")
+    public MessageResponse updateMultiLanguage(@PathVariable String id, @RequestBody @Valid ToursMultiLanguageRequest req) {
+        return toursService.createOrUpdateMultiLanguage(id, req);
+    }
+
     @PatchMapping("/{id}/publish")
     public ToursEntity publish(@PathVariable String id) {
         return toursService.publish(id);
@@ -46,8 +58,8 @@ public class ToursController {
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable String id) {
-        toursService.delete(id);
+    public MessageResponse delete(@PathVariable String id) {
+        return toursService.delete(id);
     }
 
     @GetMapping("/slug/{slug}")

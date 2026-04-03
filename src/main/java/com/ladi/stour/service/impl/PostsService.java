@@ -1,5 +1,7 @@
 package com.ladi.stour.service.impl;
 
+import com.ladi.stour.common.SlugGenerator;
+import com.ladi.stour.dto.MessageResponse;
 import com.ladi.stour.dto.PostsCreateRequest;
 import com.ladi.stour.dto.PostsUpdateRequest;
 import com.ladi.stour.embedded.SEOMeta;
@@ -32,7 +34,7 @@ public class PostsService implements InterfacePostsService {
                 .originId(null)
                 .isDefaultLocale(true)
                 .title(req.getTitle())
-                .slug(req.getSlug())
+                .slug(resolveSlugForCreate(req.getSlug(), req.getTitle()))
                 .thumbnail(req.getThumbnail())
                 .excerpt(req.getExcerpt())
                 .contentHtml(req.getContentHtml())
@@ -58,7 +60,7 @@ public class PostsService implements InterfacePostsService {
                 .originId(origin.getId())
                 .isDefaultLocale(false)
                 .title(req.getTitle())
-                .slug(req.getSlug())
+                .slug(resolveSlugForCreate(req.getSlug(), req.getTitle()))
                 .thumbnail(req.getThumbnail())
                 .excerpt(req.getExcerpt())
                 .contentHtml(req.getContentHtml())
@@ -79,7 +81,9 @@ public class PostsService implements InterfacePostsService {
                 .orElseThrow(() -> new RuntimeException("Post not found"));
 
         if (req.getTitle() != null) post.setTitle(req.getTitle());
-        if (req.getSlug() != null) post.setSlug(req.getSlug());
+        if (req.getSlug() != null && !req.getSlug().isBlank()) {
+            post.setSlug(resolveSlugForUpdate(req.getSlug(), id));
+        }
         if (req.getThumbnail() != null) post.setThumbnail(req.getThumbnail());
         if (req.getExcerpt() != null) post.setExcerpt(req.getExcerpt());
         if (req.getContentHtml() != null) post.setContentHtml(req.getContentHtml());
@@ -109,8 +113,17 @@ public class PostsService implements InterfacePostsService {
     }
 
     @Override
-    public void delete(String id) {
+    public MessageResponse delete(String id) {
+        postRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Post not found"));
         postRepository.deleteById(id);
+        return new MessageResponse("Xoa post thanh cong");
+    }
+
+    @Override
+    public PostsEntity getById(String id) {
+        return postRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Post not found"));
     }
 
     @Override
@@ -124,6 +137,16 @@ public class PostsService implements InterfacePostsService {
         return postRepository.findByTranslationGroupId(translationGroupId);
     }
 
+    @Override
+    public List<PostsEntity> getAll() {
+        return postRepository.findAll();
+    }
+
+    @Override
+    public List<PostsEntity> getPublished(String locale) {
+        return postRepository.findByLocaleAndStatus(locale, ContentStatus.published);
+    }
+
 
     private SEOMeta mapSeo(PostsCreateRequest req) {
         if (req.getSeo() == null) return null;
@@ -133,5 +156,40 @@ public class PostsService implements InterfacePostsService {
         seo.setDescription(req.getSeo().getDescription());
         seo.setKeywords(req.getSeo().getKeywords());
         return seo;
+    }
+
+    private String resolveSlugForCreate(String requestedSlug, String fallbackTitle) {
+        String baseSlug = buildBaseSlug(requestedSlug, fallbackTitle);
+        String slug = baseSlug;
+        int counter = 1;
+
+        while (postRepository.existsBySlug(slug)) {
+            slug = baseSlug + "-" + counter;
+            counter++;
+        }
+
+        return slug;
+    }
+
+    private String resolveSlugForUpdate(String requestedSlug, String id) {
+        String baseSlug = buildBaseSlug(requestedSlug, null);
+        String slug = baseSlug;
+        int counter = 1;
+
+        while (postRepository.existsBySlugAndIdNot(slug, id)) {
+            slug = baseSlug + "-" + counter;
+            counter++;
+        }
+
+        return slug;
+    }
+
+    private String buildBaseSlug(String requestedSlug, String fallbackTitle) {
+        String source = requestedSlug != null && !requestedSlug.isBlank() ? requestedSlug : fallbackTitle;
+        String slug = SlugGenerator.generateSlug(source);
+        if (slug.isBlank()) {
+            throw new RuntimeException("Unable to generate slug");
+        }
+        return slug;
     }
 }

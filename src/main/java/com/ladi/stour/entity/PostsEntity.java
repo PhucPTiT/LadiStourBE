@@ -4,6 +4,7 @@ import com.ladi.stour.embedded.SEOMeta;
 import com.ladi.stour.enums.ContentStatus;
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
@@ -25,6 +26,7 @@ public class PostsEntity {
     private boolean isDefaultLocale;
 
     private String title;
+    @Indexed(unique = true)
     private String slug;
     private String thumbnail;
     private String excerpt;

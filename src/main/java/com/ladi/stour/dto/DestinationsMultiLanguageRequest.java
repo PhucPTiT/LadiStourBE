@@ -17,7 +17,7 @@ public class DestinationsMultiLanguageRequest {
 
     private String thumbnail;
     private String banner;
-    private boolean isFeatured;
+    private Boolean isFeatured;
 
     @Data
     public static class LocaleData {

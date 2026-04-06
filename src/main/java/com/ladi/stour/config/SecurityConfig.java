@@ -67,6 +67,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/tours", "/api/tours/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reviews", "/api/reviews/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/settings", "/api/settings/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/home-hero-section", "/api/home-hero-section/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/service-highlights-section", "/api/service-highlights-section/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

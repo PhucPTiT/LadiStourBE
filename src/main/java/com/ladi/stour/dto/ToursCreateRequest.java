@@ -1,6 +1,7 @@
 package com.ladi.stour.dto;
 
 import com.ladi.stour.embedded.ItineraryDay;
+import com.ladi.stour.enums.TourStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import lombok.Data;
@@ -41,6 +42,7 @@ public class ToursCreateRequest {
 
     private List<String> tags;
     private boolean isFeatured;
+    private TourStatus status;
 
     private SeoRequest seo;
 

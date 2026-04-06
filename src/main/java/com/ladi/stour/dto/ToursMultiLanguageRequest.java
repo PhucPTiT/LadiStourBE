@@ -1,6 +1,8 @@
 package com.ladi.stour.dto;
 
 import com.ladi.stour.embedded.ItineraryDay;
+import com.ladi.stour.enums.TourStatus;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
@@ -20,7 +22,9 @@ public class ToursMultiLanguageRequest {
     private String destinationId;
 
     private List<String> images;
-    private boolean isFeatured;
+    @JsonAlias("featured")
+    private Boolean isFeatured;
+    private TourStatus status;
 
     @Data
     public static class LocaleData {

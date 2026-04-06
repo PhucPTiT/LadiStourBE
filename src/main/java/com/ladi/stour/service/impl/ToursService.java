@@ -2,6 +2,7 @@ package com.ladi.stour.service.impl;
 
 import com.ladi.stour.common.SlugGenerator;
 import com.ladi.stour.dto.MessageResponse;
+import com.ladi.stour.dto.TourFeaturedResponse;
 import com.ladi.stour.dto.ToursCreateRequest;
 import com.ladi.stour.dto.ToursMultiLanguageRequest;
 import com.ladi.stour.dto.ToursUpdateRequest;
@@ -49,7 +50,7 @@ public class ToursService implements InterfaceToursService {
                 .itinerary(req.getItinerary())
                 .tags(req.getTags())
                 .isFeatured(req.isFeatured())
-                .status(TourStatus.draft)
+                .status(req.getStatus() != null ? req.getStatus() : TourStatus.draft)
                 .seo(mapSeo(req))
                 .build();
 
@@ -80,7 +81,7 @@ public class ToursService implements InterfaceToursService {
                 .itinerary(req.getItinerary())
                 .tags(req.getTags())
                 .isFeatured(req.isFeatured())
-                .status(TourStatus.draft)
+                .status(req.getStatus() != null ? req.getStatus() : TourStatus.draft)
                 .seo(mapSeo(req))
                 .build();
 
@@ -108,6 +109,7 @@ public class ToursService implements InterfaceToursService {
         if (req.getItinerary() != null) tour.setItinerary(req.getItinerary());
         if (req.getTags() != null) tour.setTags(req.getTags());
         if (req.getIsFeatured() != null) tour.setFeatured(req.getIsFeatured());
+        if (req.getStatus() != null) tour.setStatus(req.getStatus());
 
         if (req.getSeo() != null) {
             SEOMeta seo = new SEOMeta();
@@ -183,8 +185,8 @@ public class ToursService implements InterfaceToursService {
                     .description(req.getVi().getDescription())
                     .itinerary(req.getVi().getItinerary())
                     .tags(req.getVi().getTags())
-                    .isFeatured(req.isFeatured())
-                    .status(TourStatus.draft)
+                    .isFeatured(Boolean.TRUE.equals(req.getIsFeatured()))
+                    .status(req.getStatus() != null ? req.getStatus() : TourStatus.draft)
                     .seo(mapSeoFromMultiLanguage(req.getVi().getSeo()))
                     .build();
 
@@ -214,8 +216,8 @@ public class ToursService implements InterfaceToursService {
                         .description(req.getEn().getDescription())
                         .itinerary(req.getEn().getItinerary())
                         .tags(req.getEn().getTags())
-                        .isFeatured(req.isFeatured())
-                        .status(TourStatus.draft)
+                        .isFeatured(Boolean.TRUE.equals(req.getIsFeatured()))
+                        .status(req.getStatus() != null ? req.getStatus() : TourStatus.draft)
                         .seo(mapSeoFromMultiLanguage(req.getEn().getSeo()))
                         .build();
 
@@ -317,8 +319,8 @@ public class ToursService implements InterfaceToursService {
                         .description(req.getEn().getDescription())
                         .itinerary(req.getEn().getItinerary())
                         .tags(req.getEn().getTags())
-                        .isFeatured(req.isFeatured())
-                        .status(TourStatus.draft)
+                        .isFeatured(Boolean.TRUE.equals(req.getIsFeatured()))
+                        .status(req.getStatus() != null ? req.getStatus() : TourStatus.draft)
                         .seo(mapSeoFromMultiLanguage(req.getEn().getSeo()))
                         .build();
 
@@ -327,14 +329,15 @@ public class ToursService implements InterfaceToursService {
         }
 
         // Update shared fields and align destination by locale
-        if (req.getImages() != null || hasText(req.getDestinationId())) {
+        if (req.getImages() != null || hasText(req.getDestinationId()) || req.getIsFeatured() != null || req.getStatus() != null) {
             List<ToursEntity> allTranslations = toursRepository.findByTranslationGroupId(translationGroupId);
             for (ToursEntity entity : allTranslations) {
                 if (req.getImages() != null) entity.setImages(req.getImages());
                 if (!destinationIdsByLocale.isEmpty()) {
                     entity.setDestinationId(resolveDestinationIdForLocale(destinationIdsByLocale, entity.getLocale()));
                 }
-                entity.setFeatured(req.isFeatured());
+                if (req.getIsFeatured() != null) entity.setFeatured(req.getIsFeatured());
+                if (req.getStatus() != null) entity.setStatus(req.getStatus());
                 toursRepository.save(entity);
             }
         }
@@ -374,13 +377,17 @@ public class ToursService implements InterfaceToursService {
     }
 
     @Override
-    public List<ToursEntity> getFeatured(String locale) {
-        return toursRepository.findByLocaleAndIsFeatured(locale, true);
+    public List<TourFeaturedResponse> getFeatured(String locale) {
+        return toursRepository.findByLocaleAndStatusAndIsFeatured(locale, TourStatus.published, true).stream()
+                .map(this::mapToFeaturedResponse)
+                .toList();
     }
 
     @Override
-    public List<ToursEntity> getFeaturedPublished(String locale) {
-        return toursRepository.findByLocaleAndStatusAndIsFeatured(locale, TourStatus.published, true);
+    public List<TourFeaturedResponse> getFeaturedPublished(String locale) {
+        return toursRepository.findByLocaleAndStatusAndIsFeatured(locale, TourStatus.published, true).stream()
+                .map(this::mapToFeaturedResponse)
+                .toList();
     }
 
     @Override
@@ -481,5 +488,14 @@ public class ToursService implements InterfaceToursService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private TourFeaturedResponse mapToFeaturedResponse(ToursEntity tour) {
+        DestinationsEntity destination = null;
+        if (hasText(tour.getDestinationId())) {
+            destination = destinationsRepository.findById(tour.getDestinationId()).orElse(null);
+        }
+
+        return TourFeaturedResponse.from(tour, destination);
     }
 }

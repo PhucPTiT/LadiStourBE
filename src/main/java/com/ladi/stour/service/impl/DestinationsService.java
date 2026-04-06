@@ -218,7 +218,7 @@ public class DestinationsService implements InterfaceDestinationsService {
                     .shortDescription(req.getVi().getShortDescription())
                     .description(req.getVi().getDescription())
                     .location(req.getVi().getLocation())
-                    .isFeatured(req.isFeatured())
+                    .isFeatured(Boolean.TRUE.equals(req.getIsFeatured()))
                     .seo(mapSeoFromMultiLanguage(req.getVi().getSeo()))
                     .build();
 
@@ -242,7 +242,7 @@ public class DestinationsService implements InterfaceDestinationsService {
                         .shortDescription(req.getEn().getShortDescription())
                         .description(req.getEn().getDescription())
                         .location(req.getEn().getLocation())
-                        .isFeatured(req.isFeatured())
+                        .isFeatured(Boolean.TRUE.equals(req.getIsFeatured()))
                         .seo(mapSeoFromMultiLanguage(req.getEn().getSeo()))
                         .build();
 
@@ -323,7 +323,7 @@ public class DestinationsService implements InterfaceDestinationsService {
                         .shortDescription(req.getEn().getShortDescription())
                         .description(req.getEn().getDescription())
                         .location(req.getEn().getLocation())
-                        .isFeatured(req.isFeatured())
+                        .isFeatured(Boolean.TRUE.equals(req.getIsFeatured()))
                         .seo(mapSeoFromMultiLanguage(req.getEn().getSeo()))
                         .build();
 
@@ -332,12 +332,12 @@ public class DestinationsService implements InterfaceDestinationsService {
         }
 
         // Update shared fields (thumbnail, banner, isFeatured)
-        if (req.getThumbnail() != null || req.getBanner() != null) {
+        if (req.getThumbnail() != null || req.getBanner() != null || req.getIsFeatured() != null) {
             List<DestinationsEntity> allTranslations = destinationsRepository.findByTranslationGroupId(translationGroupId);
             for (DestinationsEntity entity : allTranslations) {
                 if (req.getThumbnail() != null) entity.setThumbnail(req.getThumbnail());
                 if (req.getBanner() != null) entity.setBanner(req.getBanner());
-                entity.setFeatured(req.isFeatured());
+                if (req.getIsFeatured() != null) entity.setFeatured(req.getIsFeatured());
                 destinationsRepository.save(entity);
             }
         }

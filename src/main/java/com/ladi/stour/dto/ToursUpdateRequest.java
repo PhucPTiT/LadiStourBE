@@ -1,6 +1,7 @@
 package com.ladi.stour.dto;
 
 import com.ladi.stour.embedded.ItineraryDay;
+import com.ladi.stour.enums.TourStatus;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -27,6 +28,7 @@ public class ToursUpdateRequest {
 
     private List<String> tags;
     private Boolean isFeatured;
+    private TourStatus status;
 
     private SeoRequest seo;
 

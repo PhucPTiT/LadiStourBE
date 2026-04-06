@@ -1,6 +1,7 @@
 package com.ladi.stour.controller;
 
 import com.ladi.stour.dto.MessageResponse;
+import com.ladi.stour.dto.TourFeaturedResponse;
 import com.ladi.stour.dto.ToursCreateRequest;
 import com.ladi.stour.dto.ToursMultiLanguageRequest;
 import com.ladi.stour.dto.ToursUpdateRequest;
@@ -105,12 +106,12 @@ public class ToursController {
     }
 
     @GetMapping("/featured")
-    public List<ToursEntity> getFeatured(@RequestParam(defaultValue = "vi") String locale) {
+    public List<TourFeaturedResponse> getFeatured(@RequestParam(defaultValue = "vi") String locale) {
         return toursService.getFeatured(locale);
     }
 
     @GetMapping("/featured/published")
-    public List<ToursEntity> getFeaturedPublished(@RequestParam(defaultValue = "vi") String locale) {
+    public List<TourFeaturedResponse> getFeaturedPublished(@RequestParam(defaultValue = "vi") String locale) {
         return toursService.getFeaturedPublished(locale);
     }
 

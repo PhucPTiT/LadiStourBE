@@ -19,7 +19,7 @@ public interface InterfaceToursService {
     ToursEntity publish(String id);
     ToursEntity archive(String id);
     MessageResponse delete(String id);
-    ToursEntity getBySlug(String slug, String locale);
+    TourFeaturedResponse getBySlug(String slug, String locale);
     List<ToursEntity> getTranslations(String translationGroupId);
     List<ToursEntity> getAll(String locale);
     List<ToursEntity> getByStatus(String locale, TourStatus status);

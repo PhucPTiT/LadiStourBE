@@ -64,7 +64,7 @@ public class ToursController {
     }
 
     @GetMapping("/slug/{slug}")
-    public ToursEntity getBySlug(
+    public TourFeaturedResponse getBySlug(
             @PathVariable String slug,
             @RequestParam(defaultValue = "vi") String locale
     ) {

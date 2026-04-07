@@ -361,9 +361,16 @@ public class ToursService implements InterfaceToursService {
     }
 
     @Override
-    public ToursEntity getBySlug(String slug, String locale) {
-        return toursRepository.findBySlugAndLocale(slug, locale)
+    public TourFeaturedResponse getBySlug(String slug, String locale) {
+        ToursEntity tour = toursRepository.findBySlugAndLocale(slug, locale)
                 .orElseThrow(() -> new RuntimeException("Tour not found"));
+
+        DestinationsEntity destination = null;
+        if (hasText(tour.getDestinationId())) {
+            destination = destinationsRepository.findById(tour.getDestinationId()).orElse(null);
+        }
+
+        return TourFeaturedResponse.from(tour, destination);
     }
 
     @Override

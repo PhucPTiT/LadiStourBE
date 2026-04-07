@@ -24,7 +24,7 @@ public class DestinationsEntity extends BaseDocument {
     private boolean isDefaultLocale;
 
     private String name;
-    @Indexed(unique = true)
+    @Indexed
     private String slug;
     private String thumbnail;
     private String banner;

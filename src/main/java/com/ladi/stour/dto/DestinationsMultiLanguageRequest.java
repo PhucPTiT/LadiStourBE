@@ -1,6 +1,7 @@
 package com.ladi.stour.dto;
 
 import com.ladi.stour.embedded.Location;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
@@ -20,6 +21,7 @@ public class DestinationsMultiLanguageRequest {
     private Boolean isFeatured;
 
     @Data
+    @Schema(name = "DestinationLocaleData")
     public static class LocaleData {
         @NotBlank
         private String name;
@@ -37,6 +39,7 @@ public class DestinationsMultiLanguageRequest {
     }
 
     @Data
+    @Schema(name = "DestinationSeoRequest")
     public static class SeoRequest {
         private String title;
         private String description;

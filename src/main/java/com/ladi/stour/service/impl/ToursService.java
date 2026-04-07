@@ -30,6 +30,7 @@ public class ToursService implements InterfaceToursService {
     @Override
     public ToursEntity createDefault(ToursCreateRequest req) {
         String groupId = new ObjectId().toString();
+        String sharedSlug = resolveSlugForGroup(req.getSlug(), req.getTitle(), groupId);
 
         ToursEntity tour = ToursEntity.builder()
                 .locale(req.getLocale())
@@ -37,7 +38,7 @@ public class ToursService implements InterfaceToursService {
                 .originId(null)
                 .isDefaultLocale(true)
                 .title(req.getTitle())
-                .slug(resolveSlugForCreate(req.getSlug(), req.getTitle()))
+                .slug(sharedSlug)
                 .destinationId(req.getDestinationId())
                 .images(req.getImages())
                 .durationDays(req.getDurationDays())
@@ -61,6 +62,11 @@ public class ToursService implements InterfaceToursService {
     public ToursEntity createTranslation(String originTourId, ToursCreateRequest req) {
         ToursEntity origin = toursRepository.findById(originTourId)
                 .orElseThrow(() -> new RuntimeException("Origin tour not found"));
+        String sharedSlug = hasText(req.getSlug())
+                ? resolveSlugForGroup(req.getSlug(), req.getTitle(), origin.getTranslationGroupId())
+                : origin.getSlug();
+
+        syncSlugAcrossTranslationGroup(origin.getTranslationGroupId(), sharedSlug);
 
         ToursEntity tour = ToursEntity.builder()
                 .locale(req.getLocale())
@@ -68,7 +74,7 @@ public class ToursService implements InterfaceToursService {
                 .originId(origin.getId())
                 .isDefaultLocale(false)
                 .title(req.getTitle())
-                .slug(resolveSlugForCreate(req.getSlug(), req.getTitle()))
+                .slug(sharedSlug)
                 .destinationId(req.getDestinationId())
                 .images(req.getImages())
                 .durationDays(req.getDurationDays())
@@ -92,10 +98,13 @@ public class ToursService implements InterfaceToursService {
     public ToursEntity update(String id, ToursUpdateRequest req) {
         ToursEntity tour = toursRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tour not found"));
+        String translationGroupId = tour.getTranslationGroupId();
 
         if (req.getTitle() != null) tour.setTitle(req.getTitle());
         if (req.getSlug() != null && !req.getSlug().isBlank()) {
-            tour.setSlug(resolveSlugForUpdate(req.getSlug(), id));
+            String sharedSlug = resolveSlugForGroup(req.getSlug(), tour.getTitle(), translationGroupId);
+            syncSlugAcrossTranslationGroup(translationGroupId, sharedSlug);
+            tour.setSlug(sharedSlug);
         }
         if (req.getDestinationId() != null) tour.setDestinationId(req.getDestinationId());
         if (req.getImages() != null) tour.setImages(req.getImages());
@@ -160,20 +169,27 @@ public class ToursService implements InterfaceToursService {
     public MessageResponse createOrUpdateMultiLanguage(ToursMultiLanguageRequest req) {
         String groupId = new ObjectId().toString();
         Map<String, String> destinationIdsByLocale = resolveDestinationIdsByLocale(req.getDestinationId());
+        String sharedSlug = resolveSlugForGroup(
+                firstNonBlank(
+                        req.getEn() != null ? req.getEn().getSlug() : null,
+                        req.getVi() != null ? req.getVi().getSlug() : null
+                ),
+                firstNonBlank(
+                        req.getEn() != null ? req.getEn().getTitle() : null,
+                        req.getVi() != null ? req.getVi().getTitle() : null
+                ),
+                groupId
+        );
 
         // Create Vietnamese version (default locale)
         if (req.getVi() != null) {
-            String viSlug = req.getVi().getSlug() != null && !req.getVi().getSlug().isEmpty()
-                ? resolveSlugForCreate(req.getVi().getSlug(), req.getVi().getTitle())
-                : resolveSlugForCreate(null, req.getVi().getTitle());
-
             ToursEntity viTour = ToursEntity.builder()
                     .locale("vi")
                     .translationGroupId(groupId)
                     .originId(null)
                     .isDefaultLocale(true)
                     .title(req.getVi().getTitle())
-                    .slug(viSlug)
+                    .slug(sharedSlug)
                     .destinationId(resolveDestinationIdForLocale(destinationIdsByLocale, "vi"))
                     .images(req.getImages())
                     .durationDays(req.getVi().getDurationDays())
@@ -194,17 +210,13 @@ public class ToursService implements InterfaceToursService {
 
             // Create English version (translation)
             if (req.getEn() != null) {
-                String enSlug = req.getEn().getSlug() != null && !req.getEn().getSlug().isEmpty()
-                    ? resolveSlugForCreate(req.getEn().getSlug(), req.getEn().getTitle())
-                    : resolveSlugForCreate(null, req.getEn().getTitle());
-
                 ToursEntity enTour = ToursEntity.builder()
                         .locale("en")
                         .translationGroupId(groupId)
                         .originId(savedVi.getId())
                         .isDefaultLocale(false)
                         .title(req.getEn().getTitle())
-                        .slug(enSlug)
+                        .slug(sharedSlug)
                         .destinationId(resolveDestinationIdForLocale(destinationIdsByLocale, "en"))
                         .images(req.getImages())
                         .durationDays(req.getEn().getDurationDays())
@@ -236,6 +248,21 @@ public class ToursService implements InterfaceToursService {
 
         String translationGroupId = tour.getTranslationGroupId();
         Map<String, String> destinationIdsByLocale = resolveDestinationIdsByLocale(req.getDestinationId());
+        String sharedSlug = resolveSlugForGroup(
+                firstNonBlank(
+                        req.getEn() != null ? req.getEn().getSlug() : null,
+                        req.getVi() != null ? req.getVi().getSlug() : null,
+                        tour.getSlug()
+                ),
+                firstNonBlank(
+                        req.getEn() != null ? req.getEn().getTitle() : null,
+                        req.getVi() != null ? req.getVi().getTitle() : null,
+                        tour.getTitle()
+                ),
+                translationGroupId
+        );
+
+        syncSlugAcrossTranslationGroup(translationGroupId, sharedSlug);
 
         // Update Vietnamese version
         if (req.getVi() != null) {
@@ -243,11 +270,7 @@ public class ToursService implements InterfaceToursService {
                     .orElseThrow(() -> new RuntimeException("Vietnamese version not found"));
 
             viTour.setTitle(req.getVi().getTitle());
-
-            // Update slug if provided, otherwise keep existing
-            if (req.getVi().getSlug() != null && !req.getVi().getSlug().isEmpty()) {
-                viTour.setSlug(resolveSlugForUpdate(req.getVi().getSlug(), viTour.getId()));
-            }
+            viTour.setSlug(sharedSlug);
 
             viTour.setDescription(req.getVi().getDescription());
             if (req.getVi().getDurationDays() != null) viTour.setDurationDays(req.getVi().getDurationDays());
@@ -274,11 +297,7 @@ public class ToursService implements InterfaceToursService {
             if (enTour != null) {
                 // Update existing English version
                 enTour.setTitle(req.getEn().getTitle());
-
-                // Update slug if provided, otherwise keep existing
-                if (req.getEn().getSlug() != null && !req.getEn().getSlug().isEmpty()) {
-                    enTour.setSlug(resolveSlugForUpdate(req.getEn().getSlug(), enTour.getId()));
-                }
+                enTour.setSlug(sharedSlug);
 
                 enTour.setDescription(req.getEn().getDescription());
                 if (req.getEn().getDurationDays() != null) enTour.setDurationDays(req.getEn().getDurationDays());
@@ -297,17 +316,13 @@ public class ToursService implements InterfaceToursService {
                 toursRepository.save(enTour);
             } else {
                 // Create English version if it doesn't exist
-                String enSlug = req.getEn().getSlug() != null && !req.getEn().getSlug().isEmpty()
-                    ? resolveSlugForCreate(req.getEn().getSlug(), req.getEn().getTitle())
-                    : resolveSlugForCreate(null, req.getEn().getTitle());
-
                 ToursEntity newEnTour = ToursEntity.builder()
                         .locale("en")
                         .translationGroupId(translationGroupId)
                         .originId(id)
                         .isDefaultLocale(false)
                         .title(req.getEn().getTitle())
-                        .slug(enSlug)
+                        .slug(sharedSlug)
                         .destinationId(resolveDestinationIdForLocale(destinationIdsByLocale, "en"))
                         .images(req.getImages())
                         .durationDays(req.getEn().getDurationDays())
@@ -420,25 +435,12 @@ public class ToursService implements InterfaceToursService {
         return seo;
     }
 
-    private String resolveSlugForCreate(String requestedSlug, String fallbackTitle) {
+    private String resolveSlugForGroup(String requestedSlug, String fallbackTitle, String translationGroupId) {
         String baseSlug = buildBaseSlug(requestedSlug, fallbackTitle);
         String slug = baseSlug;
         int counter = 1;
 
-        while (toursRepository.existsBySlug(slug)) {
-            slug = baseSlug + "-" + counter;
-            counter++;
-        }
-
-        return slug;
-    }
-
-    private String resolveSlugForUpdate(String requestedSlug, String id) {
-        String baseSlug = buildBaseSlug(requestedSlug, null);
-        String slug = baseSlug;
-        int counter = 1;
-
-        while (toursRepository.existsBySlugAndIdNot(slug, id)) {
+        while (slugExistsInAnotherGroup(slug, translationGroupId)) {
             slug = baseSlug + "-" + counter;
             counter++;
         }
@@ -453,6 +455,41 @@ public class ToursService implements InterfaceToursService {
             throw new RuntimeException("Unable to generate slug");
         }
         return slug;
+    }
+
+    private boolean slugExistsInAnotherGroup(String slug, String translationGroupId) {
+        return toursRepository.findBySlug(slug).stream()
+                .anyMatch(entity -> !sameTranslationGroup(entity.getTranslationGroupId(), translationGroupId));
+    }
+
+    private boolean sameTranslationGroup(String left, String right) {
+        if (left == null || right == null) {
+            return left == null && right == null;
+        }
+        return left.equals(right);
+    }
+
+    private void syncSlugAcrossTranslationGroup(String translationGroupId, String slug) {
+        if (!hasText(translationGroupId) || !hasText(slug)) {
+            return;
+        }
+
+        List<ToursEntity> translations = toursRepository.findByTranslationGroupId(translationGroupId);
+        for (ToursEntity entity : translations) {
+            if (!slug.equals(entity.getSlug())) {
+                entity.setSlug(slug);
+                toursRepository.save(entity);
+            }
+        }
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (hasText(value)) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private Map<String, String> resolveDestinationIdsByLocale(String destinationId) {

@@ -23,6 +23,7 @@ public class DestinationsService implements InterfaceDestinationsService {
     @Override
     public DestinationsEntity createDefault(DestinationsCreateRequest req) {
         String groupId = new ObjectId().toString();
+        String sharedSlug = resolveSlugForGroup(req.getSlug(), req.getName(), groupId);
 
         DestinationsEntity destination = DestinationsEntity.builder()
                 .locale(req.getLocale())
@@ -30,7 +31,7 @@ public class DestinationsService implements InterfaceDestinationsService {
                 .originId(null)
                 .isDefaultLocale(true)
                 .name(req.getName())
-                .slug(resolveSlugForCreate(req.getSlug(), req.getName()))
+                .slug(sharedSlug)
                 .thumbnail(req.getThumbnail())
                 .banner(req.getBanner())
                 .shortDescription(req.getShortDescription())
@@ -47,6 +48,11 @@ public class DestinationsService implements InterfaceDestinationsService {
     public DestinationsEntity createTranslation(String originDestinationId, DestinationsCreateRequest req) {
         DestinationsEntity origin = destinationsRepository.findById(originDestinationId)
                 .orElseThrow(() -> new RuntimeException("Origin destination not found"));
+        String sharedSlug = hasText(req.getSlug())
+                ? resolveSlugForGroup(req.getSlug(), req.getName(), origin.getTranslationGroupId())
+                : origin.getSlug();
+
+        syncSlugAcrossTranslationGroup(origin.getTranslationGroupId(), sharedSlug);
 
         DestinationsEntity destination = DestinationsEntity.builder()
                 .locale(req.getLocale())
@@ -54,7 +60,7 @@ public class DestinationsService implements InterfaceDestinationsService {
                 .originId(origin.getId())
                 .isDefaultLocale(false)
                 .name(req.getName())
-                .slug(resolveSlugForCreate(req.getSlug(), req.getName()))
+                .slug(sharedSlug)
                 .thumbnail(req.getThumbnail())
                 .banner(req.getBanner())
                 .shortDescription(req.getShortDescription())
@@ -71,10 +77,13 @@ public class DestinationsService implements InterfaceDestinationsService {
     public DestinationsEntity update(String id, DestinationsUpdateRequest req) {
         DestinationsEntity destination = destinationsRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Destination not found"));
+        String translationGroupId = destination.getTranslationGroupId();
 
         if (req.getName() != null) destination.setName(req.getName());
         if (req.getSlug() != null && !req.getSlug().isBlank()) {
-            destination.setSlug(resolveSlugForUpdate(req.getSlug(), id));
+            String sharedSlug = resolveSlugForGroup(req.getSlug(), destination.getName(), translationGroupId);
+            syncSlugAcrossTranslationGroup(translationGroupId, sharedSlug);
+            destination.setSlug(sharedSlug);
         }
         if (req.getThumbnail() != null) destination.setThumbnail(req.getThumbnail());
         if (req.getBanner() != null) destination.setBanner(req.getBanner());
@@ -161,25 +170,12 @@ public class DestinationsService implements InterfaceDestinationsService {
         return seo;
     }
 
-    private String resolveSlugForCreate(String requestedSlug, String fallbackName) {
+    private String resolveSlugForGroup(String requestedSlug, String fallbackName, String translationGroupId) {
         String baseSlug = buildBaseSlug(requestedSlug, fallbackName);
         String slug = baseSlug;
         int counter = 1;
 
-        while (destinationsRepository.existsBySlug(slug)) {
-            slug = baseSlug + "-" + counter;
-            counter++;
-        }
-
-        return slug;
-    }
-
-    private String resolveSlugForUpdate(String requestedSlug, String id) {
-        String baseSlug = buildBaseSlug(requestedSlug, null);
-        String slug = baseSlug;
-        int counter = 1;
-
-        while (destinationsRepository.existsBySlugAndIdNot(slug, id)) {
+        while (slugExistsInAnotherGroup(slug, translationGroupId)) {
             slug = baseSlug + "-" + counter;
             counter++;
         }
@@ -196,23 +192,69 @@ public class DestinationsService implements InterfaceDestinationsService {
         return slug;
     }
 
+    private boolean slugExistsInAnotherGroup(String slug, String translationGroupId) {
+        return destinationsRepository.findBySlug(slug).stream()
+                .anyMatch(entity -> !sameTranslationGroup(entity.getTranslationGroupId(), translationGroupId));
+    }
+
+    private boolean sameTranslationGroup(String left, String right) {
+        if (left == null || right == null) {
+            return left == null && right == null;
+        }
+        return left.equals(right);
+    }
+
+    private void syncSlugAcrossTranslationGroup(String translationGroupId, String slug) {
+        if (!hasText(translationGroupId) || !hasText(slug)) {
+            return;
+        }
+
+        List<DestinationsEntity> translations = destinationsRepository.findByTranslationGroupId(translationGroupId);
+        for (DestinationsEntity entity : translations) {
+            if (!slug.equals(entity.getSlug())) {
+                entity.setSlug(slug);
+                destinationsRepository.save(entity);
+            }
+        }
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (hasText(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
     @Override
     public MessageResponse createOrUpdateMultiLanguage(DestinationsMultiLanguageRequest req) {
         String groupId = new ObjectId().toString();
+        String sharedSlug = resolveSlugForGroup(
+                firstNonBlank(
+                        req.getEn() != null ? req.getEn().getSlug() : null,
+                        req.getVi() != null ? req.getVi().getSlug() : null
+                ),
+                firstNonBlank(
+                        req.getEn() != null ? req.getEn().getName() : null,
+                        req.getVi() != null ? req.getVi().getName() : null
+                ),
+                groupId
+        );
 
         // Create Vietnamese version (default locale)
         if (req.getVi() != null) {
-            String viSlug = req.getVi().getSlug() != null && !req.getVi().getSlug().isEmpty()
-                ? resolveSlugForCreate(req.getVi().getSlug(), req.getVi().getName())
-                : resolveSlugForCreate(null, req.getVi().getName());
-
             DestinationsEntity viDestination = DestinationsEntity.builder()
                     .locale("vi")
                     .translationGroupId(groupId)
                     .originId(null)
                     .isDefaultLocale(true)
                     .name(req.getVi().getName())
-                    .slug(viSlug)
+                    .slug(sharedSlug)
                     .thumbnail(req.getThumbnail())
                     .banner(req.getBanner())
                     .shortDescription(req.getVi().getShortDescription())
@@ -226,17 +268,13 @@ public class DestinationsService implements InterfaceDestinationsService {
 
             // Create English version (translation)
             if (req.getEn() != null) {
-                String enSlug = req.getEn().getSlug() != null && !req.getEn().getSlug().isEmpty()
-                    ? resolveSlugForCreate(req.getEn().getSlug(), req.getEn().getName())
-                    : resolveSlugForCreate(null, req.getEn().getName());
-
                 DestinationsEntity enDestination = DestinationsEntity.builder()
                         .locale("en")
                         .translationGroupId(groupId)
                         .originId(savedVi.getId())
                         .isDefaultLocale(false)
                         .name(req.getEn().getName())
-                        .slug(enSlug)
+                        .slug(sharedSlug)
                         .thumbnail(req.getThumbnail())
                         .banner(req.getBanner())
                         .shortDescription(req.getEn().getShortDescription())
@@ -260,6 +298,21 @@ public class DestinationsService implements InterfaceDestinationsService {
                 .orElseThrow(() -> new RuntimeException("Destination not found"));
 
         String translationGroupId = destination.getTranslationGroupId();
+        String sharedSlug = resolveSlugForGroup(
+                firstNonBlank(
+                        req.getEn() != null ? req.getEn().getSlug() : null,
+                        req.getVi() != null ? req.getVi().getSlug() : null,
+                        destination.getSlug()
+                ),
+                firstNonBlank(
+                        req.getEn() != null ? req.getEn().getName() : null,
+                        req.getVi() != null ? req.getVi().getName() : null,
+                        destination.getName()
+                ),
+                translationGroupId
+        );
+
+        syncSlugAcrossTranslationGroup(translationGroupId, sharedSlug);
 
         // Update Vietnamese version
         if (req.getVi() != null) {
@@ -267,11 +320,7 @@ public class DestinationsService implements InterfaceDestinationsService {
                     .orElseThrow(() -> new RuntimeException("Vietnamese version not found"));
 
             viDestination.setName(req.getVi().getName());
-
-            // Update slug if provided, otherwise keep existing
-            if (req.getVi().getSlug() != null && !req.getVi().getSlug().isEmpty()) {
-                viDestination.setSlug(resolveSlugForUpdate(req.getVi().getSlug(), viDestination.getId()));
-            }
+            viDestination.setSlug(sharedSlug);
 
             viDestination.setShortDescription(req.getVi().getShortDescription());
             viDestination.setDescription(req.getVi().getDescription());
@@ -291,11 +340,7 @@ public class DestinationsService implements InterfaceDestinationsService {
             if (enDestination != null) {
                 // Update existing English version
                 enDestination.setName(req.getEn().getName());
-
-                // Update slug if provided, otherwise keep existing
-                if (req.getEn().getSlug() != null && !req.getEn().getSlug().isEmpty()) {
-                    enDestination.setSlug(resolveSlugForUpdate(req.getEn().getSlug(), enDestination.getId()));
-                }
+                enDestination.setSlug(sharedSlug);
 
                 enDestination.setShortDescription(req.getEn().getShortDescription());
                 enDestination.setDescription(req.getEn().getDescription());
@@ -307,17 +352,13 @@ public class DestinationsService implements InterfaceDestinationsService {
                 destinationsRepository.save(enDestination);
             } else {
                 // Create English version if it doesn't exist
-                String enSlug = req.getEn().getSlug() != null && !req.getEn().getSlug().isEmpty()
-                    ? resolveSlugForCreate(req.getEn().getSlug(), req.getEn().getName())
-                    : resolveSlugForCreate(null, req.getEn().getName());
-
                 DestinationsEntity newEnDestination = DestinationsEntity.builder()
                         .locale("en")
                         .translationGroupId(translationGroupId)
                         .originId(id)
                         .isDefaultLocale(false)
                         .name(req.getEn().getName())
-                        .slug(enSlug)
+                        .slug(sharedSlug)
                         .thumbnail(req.getThumbnail())
                         .banner(req.getBanner())
                         .shortDescription(req.getEn().getShortDescription())

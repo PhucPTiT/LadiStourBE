@@ -3,6 +3,7 @@ package com.ladi.stour.dto;
 import com.ladi.stour.embedded.ItineraryDay;
 import com.ladi.stour.enums.TourStatus;
 import com.fasterxml.jackson.annotation.JsonAlias;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
@@ -27,6 +28,7 @@ public class ToursMultiLanguageRequest {
     private TourStatus status;
 
     @Data
+    @Schema(name = "TourLocaleData")
     public static class LocaleData {
         @NotBlank
         private String title;
@@ -56,6 +58,7 @@ public class ToursMultiLanguageRequest {
     }
 
     @Data
+    @Schema(name = "TourSeoRequest")
     public static class SeoRequest {
         private String title;
         private String description;

@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface DestinationsRepository extends MongoRepository<DestinationsEntity, String> {
 
     Optional<DestinationsEntity> findBySlugAndLocale(String slug, String locale);
+    List<DestinationsEntity> findBySlug(String slug);
 
     List<DestinationsEntity> findByTranslationGroupId(String translationGroupId);
 
@@ -22,6 +23,4 @@ public interface DestinationsRepository extends MongoRepository<DestinationsEnti
 
     List<DestinationsEntity> findByLocationCityAndLocale(String city, String locale);
 
-    boolean existsBySlug(String slug);
-    boolean existsBySlugAndIdNot(String slug, String id);
 }

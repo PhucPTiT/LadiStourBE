@@ -162,7 +162,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                    requestPath.startsWith("/api/posts") ||
                    requestPath.startsWith("/api/tours") ||
                    requestPath.startsWith("/api/reviews") ||
-                   requestPath.startsWith("/api/settings");
+                   requestPath.startsWith("/api/settings") ||
+                   requestPath.startsWith("/api/home-hero-section") ||
+                   requestPath.startsWith("/api/service-highlights-section");
         }
 
         return false;

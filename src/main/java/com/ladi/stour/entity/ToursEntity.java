@@ -28,7 +28,7 @@ public class ToursEntity extends BaseDocument {
     private boolean isDefaultLocale;
 
     private String title;
-    @Indexed(unique = true)
+    @Indexed
     private String slug;
 
     private String destinationId;

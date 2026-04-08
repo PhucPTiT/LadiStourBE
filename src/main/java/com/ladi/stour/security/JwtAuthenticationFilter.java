@@ -156,6 +156,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return true;
         }
 
+        if ("POST".equalsIgnoreCase(method) && requestPath.startsWith("/api/bookings")) {
+            return true;
+        }
+
         if ("GET".equalsIgnoreCase(method)) {
             return requestPath.startsWith("/api/categories") ||
                    requestPath.startsWith("/api/destinations") ||
